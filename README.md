@@ -87,7 +87,7 @@ interface ICounter {
   inc(): void;
 }
 
-const counter = (value = 0) => {
+const counter = (value = 0): ICounter => {
   let count = value;
   return {
     inc() {
@@ -100,6 +100,8 @@ const counter = (value = 0) => {
 };
 
 const CounterContext = createContext<ICounter, number>(counter);
+// Actually it will work correctly without generics
+// const CounterContext = createContext(counter);
 
 withContexts(() => {
   // Will detect "counter" type and show all available methods and props

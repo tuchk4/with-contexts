@@ -11,7 +11,7 @@ interface ICounter {
   inc(): void;
 }
 
-const counter = (value = 0) => {
+const counter = (value = 0): ICounter => {
   let count = value;
   return {
     inc() {
@@ -68,7 +68,7 @@ describe('contexts', () => {
 
   it('counter context inner call', () => {
     const provider = createProvider();
-    const counterContext = provider.createContext<ICounter>(counter);
+    const counterContext = provider.createContext(counter);
 
     function inner() {
       const counter = provider.useContext(counterContext);
