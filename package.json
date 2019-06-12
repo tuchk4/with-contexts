@@ -1,10 +1,11 @@
 {
-  "name": "contexts",
-  "version": "1.0.0",
-  "main": "index.js",
+  "name": "with-contexts",
+  "version": "0.0.1",
+  "main": "dist/index.js",
   "license": "MIT",
   "scripts": {
     "build": "tsc -p .",
+    "prepublish": "tsc -p .",
     "dev": "tsc -p . -w",
     "test": "jest",
     "test:watch": "jest --watchAll --coverage"
@@ -17,6 +18,9 @@
     "tslint-config-prettier": "^1.14.0",
     "typescript": "^3.1.6"
   },
+  "files": [
+    "dist"
+  ],
   "jest": {
     "setupFiles": [],
     "testURL": "http://localhost",
@@ -30,5 +34,12 @@
       "js",
       "jsx"
     ]
-  }
+  },
+  "keywords": [
+    "context",
+    "hook",
+    "shared memory",
+    "service",
+    "dependency injection"
+  ]
 }
