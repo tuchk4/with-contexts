@@ -1,0 +1,11 @@
+node_modules
+dist
+target
+coverage
+typings
+test/e2e/screenshots
+*npm-debug.log
+.history
+.idea
+*.iml
+.yo-rc.json

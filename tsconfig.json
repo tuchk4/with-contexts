@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "outDir": "./dist",
+    "lib": ["es6", "es2017.object"],
+    "target": "es6",
+    "declaration": true
+  },
+  "include": ["src/**/*.ts"]
+}
