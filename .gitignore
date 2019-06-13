@@ -5,6 +5,7 @@ coverage
 typings
 test/e2e/screenshots
 *npm-debug.log
+*yarn-error.log
 .history
 .idea
 *.iml
