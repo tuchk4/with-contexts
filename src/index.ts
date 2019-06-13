@@ -1,7 +1,14 @@
 import { createProvider } from './contexts';
 
-const { withContexts, withValue, useContext, createContext } = createProvider();
-
 export * from './contexts.types';
+
+const {
+  withContexts,
+  withValue,
+  useContext,
+  createContext,
+  attach,
+} = createProvider();
+
 export { createProvider } from './contexts';
-export { withContexts, withValue, useContext, createContext };
+export { withContexts, withValue, useContext, createContext, attach };
