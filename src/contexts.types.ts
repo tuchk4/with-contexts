@@ -1,5 +1,11 @@
-type ArgumentTypes<F extends Function> = F extends (a: infer A) => any
-  ? A
+// type ArgumentType<F extends Function> = F extends (a: infer A) => any
+//   ? A
+//   : never;
+
+type ArgumentTypes<T extends (...args: any[]) => any> = T extends (
+  ...args: infer P
+) => any
+  ? P
   : never;
 
 export type IFactory<T, D> = (value?: D) => T;
@@ -16,20 +22,24 @@ export type IContextsMap = Map<
 export type IContextsValuesMap<T = any> = Map<IContextFactory<T>, T>;
 
 export interface IProvider {
+  attach<T extends (...args: any[]) => any>(
+    f: T
+  ): (...args: ArgumentTypes<T>) => ReturnType<T>;
+
   withContexts<T = any>(main: Function): T;
 
   useContext<T extends IContextFactory = IContextFactory>(
-    context: T,
+    context: T
   ): ReturnType<T['factory']>;
 
   createContext<T = any, D = any>(
-    factory: IFactory<T, D>,
+    factory: IFactory<T, D>
   ): IContextFactory<T, D>;
 
   duplicateContext(context: IContextFactory): IContextFactory;
 
   withValue<T extends IContextFactory = IContextFactory>(
     context: T,
-    value: ArgumentTypes<T['factory']>,
+    value: ArgumentTypes<T['factory']>[0]
   ): void;
 }

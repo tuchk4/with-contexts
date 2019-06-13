@@ -3,7 +3,7 @@ import {
   IContextsSet,
   IContextsValuesMap,
   IProvider,
-} from './context.types';
+} from './contexts.types';
 
 import { CallInProgress, CallNotInProgress } from './errors';
 
@@ -11,11 +11,43 @@ export function createProvider(): IProvider {
   const contexts: IContextsSet = new Set();
 
   let values: IContextsValuesMap = new Map();
-  let local: IContextsMap = new Map();
+  // let local: IContextsMap = new Map();
+  let local: Record<number, IContextsMap> = {};
 
   let inProgress = false;
+  let k = 0;
 
+  // function bind(main) {
+  //   let boundK = k;
+
+  //   return (...args) => {
+  //     let prev = k;
+  //     k = boundK;
+  //     inProgress = true;
+  //     main(...args);
+  //     inProgress = false;
+  //     k = prev;
+  //   };
+  // }
+  let isAttachCalled = false;
   return {
+    attach(main) {
+      let boundK = k;
+      isAttachCalled = true;
+
+      return (...args) => {
+        let prev = k;
+        k = boundK;
+        inProgress = true;
+
+        const response = main(...args);
+        inProgress = false;
+        k = prev;
+
+        return response;
+      };
+    },
+
     createContext(factory) {
       if (inProgress) {
         throw new CallInProgress('createContext(factory)');
@@ -39,23 +71,33 @@ export function createProvider(): IProvider {
     },
 
     withContexts(main) {
+      k++;
+
       if (inProgress) {
         throw new CallInProgress('withContexts(main)');
       }
 
       inProgress = true;
 
-      local = new Map();
+      local[k] = new Map();
+
       contexts.forEach(context => {
         let value;
         if (values.has(context)) {
           value = values.get(context);
         }
-        local.set(context, context.factory(value));
+        local[k].set(context, context.factory(value));
       });
 
       const result = main();
+
+      if (!isAttachCalled) {
+        delete local[k];
+      }
+
       inProgress = false;
+      isAttachCalled = false;
+
       return result;
     },
 
@@ -64,7 +106,11 @@ export function createProvider(): IProvider {
         throw new CallNotInProgress('useContext(context)');
       }
 
-      return local.get(context);
+      if (!local[k]) {
+        throw new Error(`Wrong current "${k}" context`);
+      }
+
+      return local[k].get(context);
     },
   };
 }

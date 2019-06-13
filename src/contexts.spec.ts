@@ -170,4 +170,33 @@ describe('contexts', () => {
       provider.withContexts(async () => {});
     }).toThrowError();
   });
+
+  it('test lazy useHooks', async () => {
+    const provider = createProvider();
+    const counterContext = provider.createContext<ICounter>(counter);
+
+    function inc() {
+      const counter = provider.useContext(counterContext);
+      counter.inc();
+
+      return counter.count;
+    }
+
+    const api1 = provider.withContexts(() => {
+      return {
+        inc: provider.attach(inc),
+      };
+    });
+
+    const api2 = provider.withContexts(() => {
+      return {
+        inc: provider.attach(inc),
+      };
+    });
+
+    expect(api1.inc()).toEqual(1);
+    expect(api2.inc()).toEqual(1);
+    expect(api1.inc()).toEqual(2);
+    expect(api2.inc()).toEqual(2);
+  });
 });

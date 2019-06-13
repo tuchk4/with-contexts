@@ -11,6 +11,7 @@ import {
   withContexts,
   withValue,
   createProvider,
+  attach,
 } from 'with-contexts';
 ```
 
@@ -73,6 +74,48 @@ withContexts(() => {
 
   innerCall();
 });
+```
+
+## Attach contexts for lazy evaluation
+
+```js
+const counter = (value = 0) => {
+  let count = value;
+  return {
+    inc() {
+      count++;
+    },
+    get count() {
+      return count;
+    },
+  };
+};
+
+const counterContext = createContext(counter);
+
+function inc() {
+  const counter = useContext(counterContext);
+  counter.inc();
+
+  return counter.count;
+}
+
+const api1 = withContexts(() => {
+  return {
+    inc: attach(inc),
+  };
+});
+
+const api2 = withContexts(() => {
+  return {
+    inc: attach(inc),
+  };
+});
+
+expect(api1.inc()).toEqual(1);
+expect(api2.inc()).toEqual(1);
+expect(api1.inc()).toEqual(2);
+expect(api2.inc()).toEqual(2);
 ```
 
 ## Typings
