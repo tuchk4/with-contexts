@@ -13,12 +13,42 @@ export function createProvider(): IProvider {
 
   let values: IContextsValuesMap = new Map();
   let local: Record<number, IContextsMap> = {};
+  let dependencies = new Map<IContextFactory, Set<IContextFactory>>();
+
+  let usedContextsStack: Set<IContextFactory>[] = [];
+  let usedContexts = new Set<IContextFactory>();
 
   let inProgress = false;
-
   let k = 0;
 
   let isAttachCalled = false;
+
+  function buildContext(context: IContextFactory) {
+    let value;
+    if (values.has(context)) {
+      value = values.get(context);
+    }
+
+    usedContextsStack.push(usedContexts);
+    usedContexts = new Set();
+
+    const instance = context.factory(value);
+
+    dependencies.set(context, usedContexts);
+    usedContexts = usedContextsStack.pop();
+
+    return instance;
+  }
+
+  function rebuildContextDependencies(context: IContextFactory) {
+    dependencies.forEach((dependencies, dependent) => {
+      if (dependencies.has(context)) {
+        local[k].delete(dependent);
+        dependencies.forEach(d => local[k].delete(d));
+      }
+    });
+  }
+
   return {
     attach(main) {
       let boundK = k;
@@ -55,11 +85,11 @@ export function createProvider(): IProvider {
     },
 
     withValue: (context, value) => {
-      if (inProgress) {
-        throw new CallInProgress('withValue(context, value)');
-      }
-
       values.set(context, value);
+
+      if (inProgress) {
+        rebuildContextDependencies(context);
+      }
     },
 
     withContexts(main) {
@@ -72,14 +102,6 @@ export function createProvider(): IProvider {
       inProgress = true;
 
       local[k] = new Map();
-
-      // contexts.forEach(context => {
-      //   let value;
-      //   if (values.has(context)) {
-      //     value = values.get(context);
-      //   }
-      //   local[k].set(context, context.factory(value));
-      // });
 
       const result = main();
 
@@ -99,7 +121,9 @@ export function createProvider(): IProvider {
       }
 
       if (!local[k]) {
-        throw new Error(`Wrong current "${k}" context`);
+        throw new Error(
+          `Wrong context "${k}" identifier. This seems to be a bug. Please report`
+        );
       }
 
       if (local[k].has(context)) {
@@ -110,12 +134,10 @@ export function createProvider(): IProvider {
         throw new Error(`Context does not registered with "createContext`);
       }
 
-      let value;
-      if (values.has(context)) {
-        value = values.get(context);
-      }
+      usedContexts.add(context);
 
-      local[k].set(context, context.factory(value));
+      const instance = buildContext(context);
+      local[k].set(context, instance);
 
       return local[k].get(context);
     },
