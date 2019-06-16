@@ -3,6 +3,7 @@ import {
   IContextsSet,
   IContextsValuesMap,
   IProvider,
+  IContextFactory,
 } from './contexts.types';
 
 import { CallInProgress, CallNotInProgress } from './errors';
@@ -11,24 +12,12 @@ export function createProvider(): IProvider {
   const contexts: IContextsSet = new Set();
 
   let values: IContextsValuesMap = new Map();
-  // let local: IContextsMap = new Map();
   let local: Record<number, IContextsMap> = {};
 
   let inProgress = false;
+
   let k = 0;
 
-  // function bind(main) {
-  //   let boundK = k;
-
-  //   return (...args) => {
-  //     let prev = k;
-  //     k = boundK;
-  //     inProgress = true;
-  //     main(...args);
-  //     inProgress = false;
-  //     k = prev;
-  //   };
-  // }
   let isAttachCalled = false;
   return {
     attach(main) {
@@ -52,8 +41,11 @@ export function createProvider(): IProvider {
       if (inProgress) {
         throw new CallInProgress('createContext(factory)');
       }
+
       const context = { factory };
+
       contexts.add(context);
+
       return context;
     },
 
@@ -81,13 +73,13 @@ export function createProvider(): IProvider {
 
       local[k] = new Map();
 
-      contexts.forEach(context => {
-        let value;
-        if (values.has(context)) {
-          value = values.get(context);
-        }
-        local[k].set(context, context.factory(value));
-      });
+      // contexts.forEach(context => {
+      //   let value;
+      //   if (values.has(context)) {
+      //     value = values.get(context);
+      //   }
+      //   local[k].set(context, context.factory(value));
+      // });
 
       const result = main();
 
@@ -109,6 +101,21 @@ export function createProvider(): IProvider {
       if (!local[k]) {
         throw new Error(`Wrong current "${k}" context`);
       }
+
+      if (local[k].has(context)) {
+        return local[k].get(context);
+      }
+
+      if (!contexts.has(context)) {
+        throw new Error(`Context does not registered with "createContext`);
+      }
+
+      let value;
+      if (values.has(context)) {
+        value = values.get(context);
+      }
+
+      local[k].set(context, context.factory(value));
 
       return local[k].get(context);
     },
