@@ -41,10 +41,15 @@ export function createProvider(): IProvider {
   }
 
   function rebuildContextDependencies(context: IContextFactory) {
+    if (!local[k].has(context)) {
+      return;
+    }
+
+    local[k].delete(context);
+
     dependencies.forEach((dependencies, dependent) => {
       if (dependencies.has(context)) {
-        local[k].delete(dependent);
-        dependencies.forEach(d => local[k].delete(d));
+        rebuildContextDependencies(dependent);
       }
     });
   }
