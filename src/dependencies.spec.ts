@@ -99,8 +99,6 @@ describe('dependencies', () => {
   });
 
   it('should rebuild only affected contexts', () => {
-    // A -> B -> C -> D
-
     const provider = createProvider();
 
     const AMock = jest.fn((value = 'def') => {
@@ -147,22 +145,29 @@ describe('dependencies', () => {
     expect(DMock).toHaveBeenCalledTimes(2);
   });
 
-  it.skip('should work correct with cycle deps', () => {
-    // A -> B -> A
-
+  it('should work correct with cycle deps', () => {
     const provider = createProvider();
 
-    const AMock = jest.fn((value = 'def') => {
-      const BValue = provider.useContext(B);
-      return `A:${value}_${BValue}`;
-    });
-    const A = provider.createContext(AMock);
+    const c1 = provider.createContext(() => {
+      provider.useContext(c8);
+      return '_';
+    }, '1');
+    const c2 = provider.createContext(() => provider.useContext(c1), '2');
+    const c3 = provider.createContext(() => {
+      return provider.useContext(c2);
+    }, '3');
+    const c4 = provider.createContext(() => provider.useContext(c3), '4');
+    const c5 = provider.createContext(() => {
+      return provider.useContext(c4);
+    }, '5');
+    const c6 = provider.createContext(() => provider.useContext(c5), '6');
+    const c7 = provider.createContext(() => provider.useContext(c6), '7');
+    const c8 = provider.createContext(() => provider.useContext(c7), '8');
 
-    const BMock = jest.fn((value = 'def') => {
-      const AValue = provider.useContext(A);
-      return `${AValue}_B:${value}`;
-    });
-    const B = provider.createContext(BMock);
+    // const n1 = provider.createContext(() => 'n1', 'n1');
+    // const n2 = provider.createContext(() => 'n2', 'n2');
+    // const n3 = provider.createContext(() => 'n3', 'n3');
+    // const n4 = provider.createContext(() => 'n4', 'n4');
 
     const api = provider.withContexts(() => {
       return {
@@ -170,13 +175,47 @@ describe('dependencies', () => {
           provider.withValue(context, value);
         }),
         getValue: provider.attach(() => {
-          return provider.useContext(B);
+          return provider.useContext(c8);
         }),
       };
     });
 
-    expect(api.getValue()).toEqual('A:def_B:def_C:def_D:def');
-    // api.update(A, 'custom');
-    // expect(api.getValue()).toEqual('A:custom_B:def_C:def_D:def');
+    expect(() => api.getValue()).toThrow();
+  });
+
+  it('should work correct with cycle deps', () => {
+    // A -> B -> A
+    const provider = createProvider();
+
+    const AMock = jest.fn((value = 'def') => {
+      const BValue = provider.useContext(B);
+      return `A:${value}_${BValue}`;
+    });
+    const A = provider.createContext(AMock, 'aMock');
+
+    const BMock = jest.fn((value = 'def') => {
+      const AValue = provider.useContext(A);
+      return `${AValue}_B:${value}`;
+    });
+    const B = provider.createContext(BMock, 'bMock');
+
+    const CMock = jest.fn(() => {
+      const BValue = provider.useContext(B);
+      return `${BValue}_at_C`;
+    });
+    const C = provider.createContext(CMock, 'cMock');
+
+    const api = provider.withContexts(() => {
+      return {
+        update: provider.attach((context, value) => {
+          provider.withValue(context, value);
+        }),
+        getValue: provider.attach(() => {
+          return provider.useContext(C);
+        }),
+      };
+    });
+
+    expect(() => api.getValue()).toThrow();
   });
 });

@@ -8,6 +8,8 @@ import {
 
 import { CallInProgress, CallNotInProgress } from './errors';
 
+const UNNAMED_CONTEXT_NAME = 'unnamed_context';
+
 export function createProvider(): IProvider {
   const contexts: IContextsSet = new Set();
 
@@ -16,6 +18,7 @@ export function createProvider(): IProvider {
   let dependencies = new Map<IContextFactory, Set<IContextFactory>>();
 
   let usedContextsStack: Set<IContextFactory>[] = [];
+
   let usedContexts = new Set<IContextFactory>();
 
   let inProgress = false;
@@ -28,6 +31,28 @@ export function createProvider(): IProvider {
     if (values.has(context)) {
       value = values.get(context);
     }
+
+    usedContextsStack.forEach(usedContexts => {
+      if (usedContexts.has(context)) {
+        let breadcrumbs = '';
+
+        // if (process.env.NODE_ENV === 'production') {
+        const usageStack = [];
+        usedContextsStack.map(usedContexts => {
+          const arr = [...usedContexts];
+          const lastContext = arr[arr.length - 1];
+          usageStack.push(lastContext.name);
+        });
+
+        usageStack.push(context.name);
+        breadcrumbs = usageStack.join(' - ');
+        // }
+
+        throw new Error(
+          `Contexts cycle dependencies${breadcrumbs ? `: ${breadcrumbs}` : ''}`
+        );
+      }
+    });
 
     usedContextsStack.push(usedContexts);
     usedContexts = new Set();
@@ -72,12 +97,12 @@ export function createProvider(): IProvider {
       };
     },
 
-    createContext(factory) {
+    createContext(factory, name = factory.name || UNNAMED_CONTEXT_NAME) {
       if (inProgress) {
         throw new CallInProgress('createContext(factory)');
       }
 
-      const context = { factory };
+      const context = { factory, name };
 
       contexts.add(context);
 

@@ -12,6 +12,7 @@ export type IFactory<T, D> = (value?: D) => T;
 
 export interface IContextFactory<T = any, D = any> {
   factory: IFactory<T, D>;
+  name: string;
 }
 
 export type IContextsSet = Set<IContextFactory>;
@@ -22,6 +23,9 @@ export type IContextsMap = Map<
 export type IContextsValuesMap<T = any> = Map<IContextFactory<T>, T>;
 
 export interface IProvider {
+  $usedForTestsOnly__getMetaData?: any;
+  // ---
+
   attach<T extends (...args: any[]) => any>(
     f: T
   ): (...args: ArgumentTypes<T>) => ReturnType<T>;
@@ -33,7 +37,8 @@ export interface IProvider {
   ): ReturnType<T['factory']>;
 
   createContext<T = any, D = any>(
-    factory: IFactory<T, D>
+    factory: IFactory<T, D>,
+    name?: string
   ): IContextFactory<T, D>;
 
   duplicateContext(context: IContextFactory): IContextFactory;
