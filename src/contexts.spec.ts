@@ -6,12 +6,7 @@ function wait() {
   });
 }
 
-interface ICounter {
-  count: number;
-  inc(): void;
-}
-
-const counter = (value = 0): ICounter => {
+const counter = (value = 0) => {
   let count = value;
   return {
     inc() {
@@ -26,59 +21,55 @@ const counter = (value = 0): ICounter => {
 describe('contexts', () => {
   it('counter context', () => {
     const provider = createProvider();
-    const counterContext = provider.createContext<ICounter>(counter);
 
-    provider.withContexts(() => {
-      const counter = provider.useContext(counterContext);
-      counter.inc();
-      expect(counter.count).toEqual(1);
+    provider.withProvider(() => {
+      const c = provider.withContext(counter);
+      c.inc();
+      expect(c.count).toEqual(1);
     });
   });
 
   it('shard counter context', () => {
     const provider = createProvider();
-    const counterContext = provider.createContext<ICounter>(counter);
 
-    provider.withContexts(() => {
-      const counter1 = provider.useContext(counterContext);
-      const counter2 = provider.useContext(counterContext);
+    provider.withProvider(() => {
+      const c1 = provider.withContext(counter);
+      const c2 = provider.withContext(counter);
 
-      counter1.inc();
-      counter2.inc();
-      expect(counter1.count).toEqual(2);
-      expect(counter2.count).toEqual(2);
+      c1.inc();
+      c2.inc();
+      expect(c1.count).toEqual(2);
+      expect(c2.count).toEqual(2);
     });
   });
 
   it('duplicate counter context', () => {
     const provider = createProvider();
-    const counterContext1 = provider.createContext<ICounter>(counter);
-    const counterContext2 = provider.duplicateContext(counterContext1);
+    const counter2 = provider.duplicateContext(counter);
 
-    provider.withContexts(() => {
-      const counter1 = provider.useContext(counterContext1);
-      const counter2 = provider.useContext(counterContext2);
+    provider.withProvider(() => {
+      const c1 = provider.withContext(counter);
+      const c2 = provider.withContext(counter2);
 
-      counter1.inc();
-      counter2.inc();
-      expect(counter1.count).toEqual(1);
-      expect(counter2.count).toEqual(1);
+      c1.inc();
+      c2.inc();
+      expect(c1.count).toEqual(1);
+      expect(c2.count).toEqual(1);
     });
   });
 
   it('counter context inner call', () => {
     const provider = createProvider();
-    const counterContext = provider.createContext(counter);
 
     function inner() {
-      const counter = provider.useContext(counterContext);
-      counter.inc();
-      expect(counter.count).toEqual(2);
+      const c = provider.withContext(counter);
+      c.inc();
+      expect(c.count).toEqual(2);
     }
 
-    provider.withContexts(() => {
-      const counter = provider.useContext(counterContext);
-      counter.inc();
+    provider.withProvider(() => {
+      const c = provider.withContext(counter);
+      c.inc();
       inner();
     });
   });
@@ -86,117 +77,153 @@ describe('contexts', () => {
   it('counter with initial value', () => {
     const INITIAL_VALUE = 10;
     const provider = createProvider();
-    const counterContext = provider.createContext<ICounter, number>(counter);
-    provider.withValue(counterContext, INITIAL_VALUE);
+    provider.withValue(counter, INITIAL_VALUE);
 
-    provider.withContexts(() => {
-      const counter = provider.useContext(counterContext);
+    provider.withProvider(() => {
+      const c = provider.withContext(counter);
 
-      counter.inc();
-      expect(counter.count).toEqual(INITIAL_VALUE + 1);
+      c.inc();
+      expect(c.count).toEqual(INITIAL_VALUE + 1);
     });
   });
 
-  // --- Errors
-
-  it.skip('could not use withValue inside of withContexts', () => {
+  it('counter with initial value set inside withProvider', () => {
     const INITIAL_VALUE = 10;
     const provider = createProvider();
-    const counterContext = provider.createContext<ICounter, number>(counter);
 
-    let error = null;
-    try {
-      provider.withContexts(() => {
-        provider.withValue(counterContext, INITIAL_VALUE);
-        const counter = provider.useContext(counterContext);
+    provider.withProvider(() => {
+      provider.withValue(counter, INITIAL_VALUE);
+      const c = provider.withContext(counter);
+      // will not work if called after withContexts
+      // provider.withValue(counter, INITIAL_VALUE);
 
-        counter.inc();
-        expect(counter.count).toEqual(INITIAL_VALUE + 1);
-      });
-    } catch (e) {
-      error = e;
-    }
-
-    expect(error).not.toBeNull();
-  });
-
-  it('could not use useContext outside of withContexts', () => {
-    const provider = createProvider();
-    const counterContext = provider.createContext<ICounter>(counter);
-
-    expect(() => provider.useContext(counterContext)).toThrowError();
-  });
-
-  it('could not use useContext after async', async () => {
-    const provider = createProvider();
-    const counterContext = provider.createContext<ICounter>(counter);
-
-    let error = null;
-    try {
-      await provider.withContexts(async () => {
-        await wait();
-        const counter = provider.useContext(counterContext);
-        counter.inc();
-      });
-    } catch (e) {
-      error = e;
-    }
-
-    expect(error).not.toBeNull();
-  });
-
-  it('could not use createContext inside of withContexts', () => {
-    const provider = createProvider();
-    const counterContext = provider.createContext<ICounter>(counter);
-
-    provider.withContexts(() => {
-      const counter = provider.useContext(counterContext);
-      counter.inc();
-      expect(() => provider.createContext(() => ({}))).toThrowError();
+      c.inc();
+      expect(c.count).toEqual(INITIAL_VALUE + 1);
     });
   });
 
-  it.skip('could not use withContexts if it is already in progress', async () => {
+  it('multiple withProviders', async () => {
     const provider = createProvider();
-    const counterContext = provider.createContext<ICounter>(counter);
-
-    provider.withContexts(async () => {
-      await wait();
-      const counter = provider.useContext(counterContext);
-      counter.inc();
-    });
-
-    expect(() => {
-      provider.withContexts(async () => {});
-    }).toThrowError();
-  });
-
-  it('test lazy useHooks', async () => {
-    const provider = createProvider();
-    const counterContext = provider.createContext<ICounter>(counter);
 
     function inc() {
-      const counter = provider.useContext(counterContext);
-      counter.inc();
+      const c = provider.withContext(counter);
+      c.inc();
 
-      return counter.count;
+      return c.count;
     }
 
-    const api1 = provider.withContexts(() => {
+    const api1 = provider.withProvider(() => {
       return {
-        inc: provider.attach(inc),
+        inc: provider.attachContexts(inc),
       };
     });
 
-    const api2 = provider.withContexts(() => {
+    const api2 = provider.withProvider(() => {
       return {
-        inc: provider.attach(inc),
+        inc: provider.attachContexts(inc),
       };
     });
 
     expect(api1.inc()).toEqual(1);
     expect(api2.inc()).toEqual(1);
+
     expect(api1.inc()).toEqual(2);
     expect(api2.inc()).toEqual(2);
+  });
+
+  it('multiple async withProviders', async () => {
+    const provider = createProvider();
+
+    function inc() {
+      const c = provider.withContext(counter);
+      c.inc();
+
+      return c.count;
+    }
+
+    const api1 = await provider.withProvider(async () => {
+      await wait();
+
+      return {
+        inc: provider.attachContexts(inc),
+      };
+    });
+
+    const api2 = await provider.withProvider(async () => {
+      await wait();
+      return {
+        inc: provider.attachContexts(inc),
+      };
+    });
+
+    expect(api1.inc()).toEqual(1);
+    expect(api2.inc()).toEqual(1);
+
+    expect(api1.inc()).toEqual(2);
+    expect(api2.inc()).toEqual(2);
+  });
+
+  it('use withContext after async', async () => {
+    const provider = createProvider();
+
+    const api = await provider.withProvider(async () => {
+      await wait();
+      const c = provider.withContext(counter);
+
+      return {
+        inc: c.inc,
+        getValue: provider.attachContexts(() => {
+          return provider.withContext(counter).count;
+        }),
+      };
+    });
+
+    expect(api.getValue()).toEqual(0);
+    api.inc();
+    expect(api.getValue()).toEqual(1);
+  });
+
+  // --- Errors
+  it('should throw if multiple async withProviders without await', async () => {
+    const provider = createProvider();
+
+    function inc() {
+      const c = provider.withContext(counter);
+      c.inc();
+
+      return c.count;
+    }
+
+    provider.withProvider(async () => {
+      await wait();
+
+      return {
+        inc: provider.attachContexts(inc),
+      };
+    });
+
+    expect(() => provider.withProvider(() => {})).toThrow();
+  });
+
+  it('should throw if withContext is using outside of withContexts', () => {
+    const provider = createProvider();
+
+    expect(() => provider.withContext(counter)).toThrowError();
+  });
+
+  it('should throw if attachContexts is using outside of withContexts', () => {
+    const provider = createProvider();
+
+    expect(() => provider.attachContexts(counter)).toThrowError();
+  });
+
+  it('should throw if withProvider is using inside another withProvider', () => {
+    const provider = createProvider();
+
+    provider.withProvider(() => {
+      const c = provider.withContext(counter);
+      c.inc();
+      expect(() => provider.withProvider(() => ({}))).toThrowError();
+    });
   });
 });

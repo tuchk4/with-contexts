@@ -1,175 +1,139 @@
-import {
-  IContextsMap,
-  IContextsSet,
-  IContextsValuesMap,
-  IProvider,
-  IContextFactory,
-} from './contexts.types';
+import { IProvider, IFactory, ArgumentTypes } from './contexts.types';
 
-import { CallInProgress, CallNotInProgress } from './errors';
-
-const UNNAMED_CONTEXT_NAME = 'unnamed_context';
+type IContextsMap<T extends IFactory = IFactory> = Map<T, ReturnType<T>>;
+type IContextsInitialValuesMap<T extends IFactory = IFactory> = Map<
+  T,
+  ArgumentTypes<T>
+>;
+type IUsedContexts = Set<IFactory>;
+type IDependencies = Map<IFactory, IUsedContexts>;
+type IWIthContextsCallStack = IUsedContexts[];
 
 export function createProvider(): IProvider {
-  const contexts: IContextsSet = new Set();
+  const dependencies: IDependencies = new Map();
+  const withContextCallStack: IWIthContextsCallStack = [];
 
-  let values: IContextsValuesMap = new Map();
-  let local: Record<number, IContextsMap> = {};
-  let dependencies = new Map<IContextFactory, Set<IContextFactory>>();
-
-  let usedContextsStack: Set<IContextFactory>[] = [];
-
-  let usedContexts = new Set<IContextFactory>();
+  let contexts: IContextsMap = new Map();
+  let initialValues: IContextsInitialValuesMap = new Map();
+  let usedContexts: IUsedContexts = new Set();
 
   let inProgress = false;
-  let k = 0;
 
-  let isAttachCalled = false;
-
-  function buildContext(context: IContextFactory) {
-    let value;
-    if (values.has(context)) {
-      value = values.get(context);
-    }
-
-    usedContextsStack.forEach(usedContexts => {
-      if (usedContexts.has(context)) {
-        let breadcrumbs = '';
-
-        // if (process.env.NODE_ENV === 'production') {
-        const usageStack = [];
-        usedContextsStack.map(usedContexts => {
-          const arr = [...usedContexts];
-          const lastContext = arr[arr.length - 1];
-          usageStack.push(lastContext.name);
-        });
-
-        usageStack.push(context.name);
-        breadcrumbs = usageStack.join(' - ');
-        // }
-
-        throw new Error(
-          `Contexts cycle dependencies${breadcrumbs ? `: ${breadcrumbs}` : ''}`
-        );
-      }
-    });
-
-    usedContextsStack.push(usedContexts);
-    usedContexts = new Set();
-
-    const instance = context.factory(value);
-
-    dependencies.set(context, usedContexts);
-    usedContexts = usedContextsStack.pop();
-
-    return instance;
-  }
-
-  function rebuildContextDependencies(context: IContextFactory) {
-    if (!local[k].has(context)) {
-      return;
-    }
-
-    local[k].delete(context);
+  function clearContexts(factory: IFactory) {
+    contexts.delete(factory);
 
     dependencies.forEach((dependencies, dependent) => {
-      if (dependencies.has(context)) {
-        rebuildContextDependencies(dependent);
+      if (dependencies.has(factory)) {
+        clearContexts(dependent);
       }
     });
+  }
+
+  function checkCycleDeps(factory: IFactory) {
+    let breadcrumbs = [];
+
+    let hasCycle = false;
+    withContextCallStack.forEach(usedContexts => {
+      if (usedContexts.has(factory)) {
+        hasCycle = true;
+      }
+      breadcrumbs.push(
+        [...usedContexts].map(c => (c === factory ? `|${c.name}|` : c.name))
+      );
+    });
+
+    if (hasCycle) {
+      breadcrumbs.push(`|${factory.name}|`);
+      throw new Error(`
+There are cycle context dependencies:
+${breadcrumbs.join(' -> ')}
+`);
+    }
   }
 
   return {
-    attach(main) {
-      let boundK = k;
-      isAttachCalled = true;
-
-      return (...args) => {
-        let prev = k;
-        k = boundK;
-        inProgress = true;
-
-        const response = main(...args);
-        inProgress = false;
-        k = prev;
-
-        return response;
-      };
-    },
-
-    createContext(factory, name = factory.name || UNNAMED_CONTEXT_NAME) {
+    withProvider(main: Function) {
       if (inProgress) {
-        throw new CallInProgress('createContext(factory)');
-      }
-
-      const context = { factory, name };
-
-      contexts.add(context);
-
-      return context;
-    },
-
-    duplicateContext(context) {
-      const dup = this.createContext(context.factory);
-      return dup;
-    },
-
-    withValue: (context, value) => {
-      values.set(context, value);
-
-      if (inProgress) {
-        rebuildContextDependencies(context);
-      }
-    },
-
-    withContexts(main) {
-      k++;
-
-      if (inProgress) {
-        throw new CallInProgress('withContexts(main)');
-      }
-
-      inProgress = true;
-
-      local[k] = new Map();
-
-      const result = main();
-
-      if (!isAttachCalled) {
-        delete local[k];
-      }
-
-      inProgress = false;
-      isAttachCalled = false;
-
-      return result;
-    },
-
-    useContext(context) {
-      if (!inProgress) {
-        throw new CallNotInProgress('useContext(context)');
-      }
-
-      if (!local[k]) {
         throw new Error(
-          `Wrong context "${k}" identifier. This seems to be a bug. Please report`
+          'Could not run "withProvider" while another "withProvider" is still in progress'
         );
       }
 
-      if (local[k].has(context)) {
-        return local[k].get(context);
+      contexts = new Map();
+
+      inProgress = true;
+      const result = main();
+
+      if (result && result.then) {
+        Promise.resolve(result).then(() => {
+          inProgress = false;
+        });
+      } else {
+        inProgress = false;
       }
 
-      if (!contexts.has(context)) {
-        throw new Error(`Context does not registered with "createContext`);
+      return result;
+    },
+    attachContexts(main: Function) {
+      if (!inProgress) {
+        throw new Error(
+          '"attachContexts" should be used inside "withProvider" and while it is in progress'
+        );
       }
 
-      usedContexts.add(context);
+      let localContexts = contexts;
 
-      const instance = buildContext(context);
-      local[k].set(context, instance);
+      return (...args) => {
+        inProgress = true;
 
-      return local[k].get(context);
+        const contextsBackup = contexts;
+        contexts = localContexts;
+
+        const result = main(...args);
+
+        contexts = contextsBackup;
+        inProgress = false;
+
+        return result;
+      };
+    },
+    withContext<T extends (...args: any) => any>(factory: T): ReturnType<T> {
+      if (!inProgress) {
+        throw new Error(
+          '"withContext" should be used inside "withProvider" or "attachContexts"'
+        );
+      }
+
+      usedContexts.add(factory);
+
+      if (!contexts.has(factory)) {
+        checkCycleDeps(factory);
+
+        const usedContextsBackup = usedContexts;
+        withContextCallStack.push(usedContexts);
+
+        usedContexts = new Set();
+
+        const value = initialValues.get(factory) || [];
+        contexts.set(factory, factory(...value));
+
+        dependencies.set(factory, usedContexts);
+        usedContexts = usedContextsBackup;
+        withContextCallStack.pop();
+      }
+
+      return contexts.get(factory);
+    },
+
+    duplicateContext(factory) {
+      return (...args) => {
+        return factory(...args);
+      };
+    },
+
+    withValue(factory, ...value) {
+      initialValues.set(factory, value);
+      clearContexts(factory);
     },
   };
 }

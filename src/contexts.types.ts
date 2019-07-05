@@ -1,50 +1,23 @@
-// type ArgumentType<F extends Function> = F extends (a: infer A) => any
-//   ? A
-//   : never;
-
-type ArgumentTypes<T extends (...args: any[]) => any> = T extends (
+export type ArgumentTypes<T extends (...args: any[]) => any> = T extends (
   ...args: infer P
 ) => any
   ? P
   : never;
 
-export type IFactory<T, D> = (value?: D) => T;
-
-export interface IContextFactory<T = any, D = any> {
-  factory: IFactory<T, D>;
-  name: string;
-}
-
-export type IContextsSet = Set<IContextFactory>;
-export type IContextsMap = Map<
-  IContextFactory,
-  ReturnType<IContextFactory['factory']>
->;
-export type IContextsValuesMap<T = any> = Map<IContextFactory<T>, T>;
+export type IFactory = (...args: any[]) => any;
 
 export interface IProvider {
-  $usedForTestsOnly__getMetaData?: any;
-  // ---
+  withProvider<T extends any>(main: () => T): T;
 
-  attach<T extends (...args: any[]) => any>(
-    f: T
+  attachContexts<T extends IFactory>(
+    func: T
   ): (...args: ArgumentTypes<T>) => ReturnType<T>;
 
-  withContexts<T = any>(main: Function): T;
+  duplicateContext<T extends IFactory = IFactory>(
+    factory: T
+  ): (...args: ArgumentTypes<T>) => ReturnType<T>;
 
-  useContext<T extends IContextFactory = IContextFactory>(
-    context: T
-  ): ReturnType<T['factory']>;
+  withContext<T extends IFactory = IFactory>(factory: T): ReturnType<T>;
 
-  createContext<T = any, D = any>(
-    factory: IFactory<T, D>,
-    name?: string
-  ): IContextFactory<T, D>;
-
-  duplicateContext(context: IContextFactory): IContextFactory;
-
-  withValue<T extends IContextFactory = IContextFactory>(
-    context: T,
-    value: ArgumentTypes<T['factory']>[0]
-  ): void;
+  withValue<T extends IFactory>(factory: T, ...value: ArgumentTypes<T>): void;
 }

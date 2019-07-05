@@ -3,12 +3,11 @@ import { createProvider } from './contexts';
 export * from './contexts.types';
 
 const {
-  withContexts,
+  withProvider,
   withValue,
-  useContext,
-  createContext,
-  attach,
+  withContext,
+  attachContexts,
 } = createProvider();
 
 export { createProvider } from './contexts';
-export { withContexts, withValue, useContext, createContext, attach };
+export { withProvider, withValue, withContext, attachContexts };
