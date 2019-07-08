@@ -73,7 +73,7 @@ ${breadcrumbs.join(' -> ')}
     withProvider(main: Function) {
       if (inProgress) {
         throw new Error(
-          'Could not run "withProvider" while another "withProvider" is still in progress'
+          'Could not run "withProvider" while another "withProvider" is still in progress progress.'
         );
       }
 
@@ -95,7 +95,7 @@ ${breadcrumbs.join(' -> ')}
     attachContexts(main: Function) {
       if (!inProgress) {
         throw new Error(
-          '"attachContexts" should be used inside "withProvider" and while it is in progress'
+          '"attachContexts" should be used inside "withProvider" and while it is in progress progress or attached to contexts using "withContexts".'
         );
       }
 
@@ -147,6 +147,12 @@ ${breadcrumbs.join(' -> ')}
     // ---
     createScope(factory, ...values) {
       return (main: Function) => {
+        if (inProgress) {
+          throw new Error(
+            'Functions created with "createScope" should be used inside "withProvider" and while it is in progress or attached to contexts using "withContexts".'
+          );
+        }
+
         const instance = contexts.get(factory);
 
         createContext(factory, ...values);
