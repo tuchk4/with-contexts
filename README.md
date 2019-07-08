@@ -6,18 +6,24 @@ Contexts for javascript. Inspired by React contexts and hooks
 
 ```js
 import {
-  creteContext,
-  useContext,
-  withContexts,
+  withProvider,
+  attachContexts,
+  duplicateContext,
+  withContext,
   withValue,
-  createProvider,
-  attach,
+  createScope,
 } from 'with-contexts';
 ```
 
+## Idea
+
+Values of factory functions are the same for each `withContext` call inside one `withProvider` function.
+
+
 ```js
-const counter = (value = 0) => {
+const Counter = (value = 0) => {
   let count = value;
+
   return {
     inc() {
       count++;
@@ -28,59 +34,28 @@ const counter = (value = 0) => {
   };
 };
 
-const CounterContext = createContext(counter);
-
-withContexts(() => {
-  const counter = useContext(CounterContext);
+withProvider(() => {
+  const counter = withContext(Counter);
   counter.inc();
-  expect(counter.count).toEqual(1);
+  console.log(counter.value); // 1
 
   innerCall();
 });
 
 function innerCall() {
-  const counter = useContext(CounterContext);
+  const counter = withContext(Counter);
   counter.inc();
 
-  // NOTE  that count equal to "2"
-  expect(counter.count).toEqual(2);
+  console.log(counter.value); // 2
 }
 ```
 
 ## Initial value
 
 ```js
-const CounterContext = createContext(counter);
-withValue(CounterContext, 10);
-```
-
-## Duplicate context
-
-Will not share initial value.
-
-```js
-const CounterContext1 = createContext(counter);
-const CounterContext2 = duplicateContext(CounterContext1);
-
-withContexts(() => {
-  const counter1 = useContext(CounterContext1);
-  const counter2 = useContext(CounterContext2);
-
-  counter1.inc();
-  counter2.inc();
-
-  expect(counter1.count).toEqual(1);
-  expect(counter2.count).toEqual(1);
-
-  innerCall();
-});
-```
-
-## Attach contexts for lazy evaluation
-
-```js
-const counter = (value = 0) => {
+const Counter = (value = 0) => {
   let count = value;
+
   return {
     inc() {
       count++;
@@ -91,31 +66,102 @@ const counter = (value = 0) => {
   };
 };
 
-const counterContext = createContext(counter);
+withValue(Counter, 10);
+```
 
-function inc() {
-  const counter = useContext(counterContext);
-  counter.inc();
-
-  return counter.count;
+```js
+const Database = (url, port) => {
+  // ...
 }
 
-const api1 = withContexts(() => {
+withValue(Database, 'localhost', 6000);
+```
+
+## Duplicate context
+
+Will not share value and initial value.
+
+```js
+const Counter = () => {
+  let value = 0;
   return {
-    inc: attach(inc),
+    inc() {
+      value++;
+    }
+    get count() {
+      return value;
+    }
+  }
+}
+
+const Counter2 = duplicateContext(Counter);
+
+withProvider(() => {
+  const counter1 = withContext(Counter);
+  const counter2 = withContext(Counter2);
+
+  counter1.inc();
+  counter2.inc();
+
+  console.log(counter1.count); // 
+  console.log(counter2.count); // 
+});
+```
+
+## Attach contexts for async / later calls
+
+```js
+const Database = (url, port) => {};
+
+const api = withProvider(() => {
+  return {
+    query: attachContext(() => {
+      const db = withContext(Database);
+      db.query();
+    }),
   };
 });
 
-const api2 = withContexts(() => {
-  return {
-    inc: attach(inc),
-  };
-});
+api.query();
+```
 
-expect(api1.inc()).toEqual(1);
-expect(api2.inc()).toEqual(1);
-expect(api1.inc()).toEqual(2);
-expect(api2.inc()).toEqual(2);
+## Scope
+
+Create context with value and clear it after end of function execution.
+
+```js
+const User = () => {
+  return {};
+}
+
+
+function setName() {
+  const user = withContext(User);
+  user.name = 'John';
+}
+
+function setLastName() {
+  const user = withContext(User);
+  user.lastName = 'Doe';
+}
+
+function saveUser() {
+  const user = withContext(User);
+  const db = withContext(Database);
+
+  // ...
+}
+
+const withUser = createScope(User);
+
+withProvider(() => {
+  withUser(() => {
+    setName();
+    setLastName();
+
+    save();
+  })
+});
 ```
 
 ## Typings
@@ -125,12 +171,7 @@ createContext<ICountersInterface, InitialValueType>
 ```
 
 ```ts
-interface ICounter {
-  count: number;
-  inc(): void;
-}
-
-const counter = (value = 0): ICounter => {
+const Counter = (value = 0) => {
   let count = value;
   return {
     inc() {
@@ -142,13 +183,12 @@ const counter = (value = 0): ICounter => {
   };
 };
 
-const CounterContext = createContext<ICounter, number>(counter);
 // Actually it will work correctly without generics
 // const CounterContext = createContext(counter);
 
-withContexts(() => {
+withProvider(() => {
   // Will detect "counter" type and show all available methods and props
-  const counter = useContext(CounterContext);
+  const counter = withContext(Counter);
 
   counter.inc();
   counter.count;
