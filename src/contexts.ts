@@ -126,6 +126,9 @@ ${breadcrumbs.join(' -> ')}
 
       if (!contexts.has(factory)) {
         const value = initialValues.get(factory) || [];
+        /**
+         * TODO: fix typings
+         */
         // @ts-ignore
         createContext(factory, ...value);
       }
