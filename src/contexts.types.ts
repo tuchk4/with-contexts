@@ -20,4 +20,9 @@ export interface IProvider {
   withContext<T extends IFactory = IFactory>(factory: T): ReturnType<T>;
 
   withValue<T extends IFactory>(factory: T, ...value: ArgumentTypes<T>): void;
+
+  createScope<T extends IFactory>(
+    factory: T,
+    ...value: ArgumentTypes<T>
+  ): Function;
 }

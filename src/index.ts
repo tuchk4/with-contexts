@@ -7,7 +7,8 @@ const {
   withValue,
   withContext,
   attachContexts,
+  createScope,
 } = createProvider();
 
 export { createProvider } from './contexts';
-export { withProvider, withValue, withContext, attachContexts };
+export { withProvider, withValue, withContext, attachContexts, createScope };

@@ -29,6 +29,24 @@ export function createProvider(): IProvider {
     });
   }
 
+  function createContext<T extends IFactory>(
+    factory: T,
+    ...value: ArgumentTypes<T>
+  ) {
+    checkCycleDeps(factory);
+
+    const usedContextsBackup = usedContexts;
+    withContextCallStack.push(usedContexts);
+
+    usedContexts = new Set();
+
+    contexts.set(factory, factory(...value));
+
+    dependencies.set(factory, usedContexts);
+    usedContexts = usedContextsBackup;
+    withContextCallStack.pop();
+  }
+
   function checkCycleDeps(factory: IFactory) {
     let breadcrumbs = [];
 
@@ -97,7 +115,7 @@ ${breadcrumbs.join(' -> ')}
         return result;
       };
     },
-    withContext<T extends (...args: any) => any>(factory: T): ReturnType<T> {
+    withContext(factory) {
       if (!inProgress) {
         throw new Error(
           '"withContext" should be used inside "withProvider" or "attachContexts"'
@@ -107,19 +125,9 @@ ${breadcrumbs.join(' -> ')}
       usedContexts.add(factory);
 
       if (!contexts.has(factory)) {
-        checkCycleDeps(factory);
-
-        const usedContextsBackup = usedContexts;
-        withContextCallStack.push(usedContexts);
-
-        usedContexts = new Set();
-
         const value = initialValues.get(factory) || [];
-        contexts.set(factory, factory(...value));
-
-        dependencies.set(factory, usedContexts);
-        usedContexts = usedContextsBackup;
-        withContextCallStack.pop();
+        // @ts-ignore
+        createContext(factory, ...value);
       }
 
       return contexts.get(factory);
@@ -134,6 +142,23 @@ ${breadcrumbs.join(' -> ')}
     withValue(factory, ...value) {
       initialValues.set(factory, value);
       clearContexts(factory);
+    },
+
+    // ---
+    createScope(factory, ...values) {
+      return (main: Function) => {
+        const instance = contexts.get(factory);
+
+        createContext(factory, ...values);
+        const result = main();
+        clearContexts(factory);
+
+        if (instance) {
+          contexts.set(factory, instance);
+        }
+
+        return result;
+      };
     },
   };
 }
