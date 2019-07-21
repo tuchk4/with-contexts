@@ -183,6 +183,29 @@ describe('contexts', () => {
     expect(api.getValue()).toEqual(1);
   });
 
+  it('nested attach contexts', () => {
+    const provider = createProvider();
+
+    const api = provider.withProvider(() => {
+      const c = provider.withContext(counter);
+
+      const getValueAttached = provider.attachContexts(() => {
+        return provider.withContext(counter).count;
+      });
+
+      return {
+        inc: c.inc,
+        getValue: provider.attachContexts(() => {
+          return getValueAttached();
+        }),
+      };
+    });
+
+    expect(api.getValue()).toEqual(0);
+    api.inc();
+    expect(api.getValue()).toEqual(1);
+  });
+
   // --- Errors
   it('should throw if multiple async withProviders without await', async () => {
     const provider = createProvider();
