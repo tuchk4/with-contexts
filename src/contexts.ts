@@ -150,7 +150,7 @@ ${breadcrumbs.join(' -> ')}
     // ---
     createScope(factory, ...values) {
       return (main: Function) => {
-        if (inProgress) {
+        if (!inProgress) {
           throw new Error(
             'Functions created with "createScope" should be used inside "withProvider" and while it is in progress or attached to contexts using "withContexts".'
           );
