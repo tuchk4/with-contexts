@@ -1,4 +1,4 @@
-import { createProvider } from './contexts';
+import { createProvider } from '../contexts';
 
 function wait() {
   return new Promise(resolve => {

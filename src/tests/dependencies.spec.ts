@@ -1,4 +1,4 @@
-import { createProvider } from './contexts';
+import { createProvider } from '../contexts';
 
 describe('dependencies', () => {
   it('should rebuild context when withValue called', () => {
