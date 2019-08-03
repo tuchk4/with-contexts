@@ -11,7 +11,7 @@ type IWIthContextsCallStack = IUsedContexts[];
 
 export function createProvider(): IProvider {
   const dependencies: IDependencies = new Map();
-  const withContextCallStack: IWIthContextsCallStack = [];
+  // const withContextCallStack: IWIthContextsCallStack = [];
 
   let contexts: IContextsMap = new Map();
   let initialValues: IContextsInitialValuesMap = new Map();
@@ -33,10 +33,10 @@ export function createProvider(): IProvider {
     factory: T,
     ...value: ArgumentTypes<T>
   ) {
-    checkCycleDeps(factory);
+    // checkCycleDeps(factory);
 
     const usedContextsBackup = usedContexts;
-    withContextCallStack.push(usedContexts);
+    // withContextCallStack.push(usedContexts);
 
     usedContexts = new Set();
 
@@ -44,30 +44,30 @@ export function createProvider(): IProvider {
 
     dependencies.set(factory, usedContexts);
     usedContexts = usedContextsBackup;
-    withContextCallStack.pop();
+    // withContextCallStack.pop();
   }
 
-  function checkCycleDeps(factory: IFactory) {
-    let breadcrumbs = [];
+  // function checkCycleDeps(factory: IFactory) {
+  //   let breadcrumbs = [];
 
-    let hasCycle = false;
-    withContextCallStack.forEach(usedContexts => {
-      if (usedContexts.has(factory)) {
-        hasCycle = true;
-      }
-      breadcrumbs.push(
-        [...usedContexts].map(c => (c === factory ? `|${c.name}|` : c.name))
-      );
-    });
+  //   let hasCycle = false;
+  //   withContextCallStack.forEach(usedContexts => {
+  //     if (usedContexts.has(factory)) {
+  //       hasCycle = true;
+  //     }
+  //     breadcrumbs.push(
+  //       [...usedContexts].map(c => (c === factory ? `|${c.name}|` : c.name))
+  //     );
+  //   });
 
-    if (hasCycle) {
-      breadcrumbs.push(`|${factory.name}|`);
-      throw new Error(`
-There are cycle context dependencies:
-${breadcrumbs.join(' -> ')}
-`);
-    }
-  }
+  //   if (hasCycle) {
+  //     breadcrumbs.push(`|${factory.name}|`);
+  //     throw new Error(`
+  //     There are cycle context dependencies:
+  //     ${breadcrumbs.join(' -> ')}
+  //     `);
+  //   }
+  // }
 
   return {
     withProvider(main: Function) {

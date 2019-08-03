@@ -4,6 +4,7 @@
     "outDir": "./dist",
     "lib": ["es6", "es2017.object"],
     "target": "es6",
+    "module": "commonjs",
     "declaration": true,
     "esModuleInterop": true
   },
