@@ -78,9 +78,17 @@ export function createProvider(): IProvider {
       }
 
       contexts = new Map();
+      initialValues = new Map();
 
       inProgress = true;
-      const result = main();
+      let result;
+
+      try {
+        result = main();
+      } catch (e) {
+        inProgress = false;
+        throw e;
+      }
 
       if (result && result.then) {
         Promise.resolve(result).then(() => {
@@ -100,6 +108,7 @@ export function createProvider(): IProvider {
       }
 
       let localContexts = contexts;
+      let localInitialValues = initialValues;
 
       return (...args) => {
         inProgress = true;
@@ -107,9 +116,19 @@ export function createProvider(): IProvider {
         const contextsBackup = contexts;
         contexts = localContexts;
 
-        const result = main(...args);
+        const initialValuesBackup = initialValues;
+        initialValues = localInitialValues;
+
+        let result;
+        try {
+          result = main(...args);
+        } catch (e) {
+          inProgress = false;
+          throw e;
+        }
 
         contexts = contextsBackup;
+        initialValues = initialValuesBackup;
         inProgress = false;
 
         return result;
