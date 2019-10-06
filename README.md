@@ -19,7 +19,6 @@ import {
 
 Values of factory functions are the same for each `withContext` call inside one `withProvider` function.
 
-
 ```js
 const Counter = (value = 0) => {
   let count = value;
@@ -72,7 +71,7 @@ withValue(Counter, 10);
 ```js
 const Database = (url, port) => {
   // ...
-}
+};
 
 withValue(Database, 'localhost', 6000);
 ```
@@ -103,8 +102,8 @@ withProvider(() => {
   counter1.inc();
   counter2.inc();
 
-  console.log(counter1.count); // 
-  console.log(counter2.count); // 
+  console.log(counter1.count); //
+  console.log(counter2.count); //
 });
 ```
 
@@ -132,8 +131,7 @@ Create context with value and clear it after end of function execution.
 ```js
 const User = () => {
   return {};
-}
-
+};
 
 function setName() {
   const user = withContext(User);
@@ -160,7 +158,7 @@ withProvider(() => {
     setLastName();
 
     save();
-  })
+  });
 });
 ```
 
@@ -178,14 +176,13 @@ const Counter = (value = 0) => {
       count++;
     },
     get count() {
-      return count;
+      return state;
     },
   };
 };
 
 // Actually it will work correctly without generics
 // const CounterContext = createContext(counter);
-
 withProvider(() => {
   // Will detect "counter" type and show all available methods and props
   const counter = withContext(Counter);
